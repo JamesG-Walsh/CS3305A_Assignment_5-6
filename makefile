@@ -15,3 +15,14 @@ test:
 clean:
 	@echo "Cleaning up..."
 	rm -f ${EXEC} assignment_6_output_file.txt
+
+run:
+	make clean
+	make
+	make test
+
+debug:
+	make clean
+	make
+	./${EXEC} assignment_6_input_file.txt
+	cat assignment_6_output_file.txt

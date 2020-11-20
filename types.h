@@ -1,12 +1,14 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-typedef struct input_data
+typedef struct bank_data
 {
   int num_accounts;
   int num_customers;
   int *balances;
-} input_data;
+  int *transaction_string_lengths;
+  //char **transaction_strings;
+} bank_data;
 
 typedef struct node
 {

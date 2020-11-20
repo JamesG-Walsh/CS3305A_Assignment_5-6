@@ -21,9 +21,9 @@ int main(int argc, char* argv[])
   exit(1);
   }
 
-  input_data inp_data;
+  bank_data *ban_dat = malloc(sizeof(bank_data));
   puts("About to call read_input_file()");
-  read_input_file(argv[1], &inp_data); //TODO implement function in io.c
+  read_input_file(argv[1], ban_dat); //TODO implement function in io.c
   puts("Back in main from read_input_file()");
 
   if (access(FILENAME_OUTPUT, F_OK) != -1)
@@ -37,6 +37,9 @@ int main(int argc, char* argv[])
   //printf("electronic music");
   puts("");
 
+  free(ban_dat->balances);
+  free(ban_dat->transaction_string_lengths);
+  free(ban_dat);
   close(fp_outfile);
 
   return 0;

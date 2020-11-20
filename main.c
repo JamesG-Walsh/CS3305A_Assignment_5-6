@@ -21,9 +21,9 @@ int main(int argc, char* argv[])
   exit(1);
   }
 
-  input_data inp_dat;
+  input_data inp_data;
   puts("About to call read_input_file()");
-  read_input_file(argv[1], &inp_dat); //TODO implement function in io.c
+  read_input_file(argv[1], &inp_data); //TODO implement function in io.c
   puts("Back in main from read_input_file()");
 
   if (access(FILENAME_OUTPUT, F_OK) != -1)

@@ -22,13 +22,10 @@ int read_input_file(char *filename, bank_data *bd)
   initialize_balances(fp, bd);
   populate_transaction_string_lengths(fp, bd);
 
+  print_bank_data(bd);
+
   process_all_customer_transactions(fp, bd);
 
-  print_bank_data(bd);
-  for (int cid = 1; cid <= bd->num_customers ; cid++)
-  {
-    //process_customer_transactions(fp, bd, cid);
-  }
   print_bank_data(bd);
 
   fclose(fp);
@@ -160,7 +157,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
     //}
     puts(transaction_string);
-    process_customer(transaction_string);
+    process_customer(transaction_string, bd);
     //bd->transaction_strings[i-1] = transaction_string;
     //c = getc(fp);
   }
@@ -192,74 +189,122 @@ void initialize_balances(FILE *fp, bank_data *bd)
 }
 
 //void process_customer_transactions(FILE *fp, bank_data *bd, int cid)
-void process_customer(char *transaction_str)
+void process_customer(char *transaction_str, bank_data *bd)
 {
   printf("Processing Customer\n");
   int i = 0;
   char c = transaction_str[i];
 
   const char delim[2] = " ";
-  char *buffer = NULL;
+  char *buf = NULL;
 
   int account_a;
   int account_b;
   int amount;
 
-  char *tok = strtok(buffer, delim);
-  while (tok != NULL)
+  int loop_count = 0;
+  char *tok = strtok(transaction_str, delim);
+  while (tok != NULL && loop_count < 5)
   {
-    printf("tok[0]: %c\n", tok[0]);
+    loop_count += 1; //TODO remove line
+    //printf("tok[0]: %c\n", tok[0]);
     switch (tok[0]) //TODO make sure this is robust for accounts and customer ids bigger than 10
     {
       case 'c':
-        printf("found the c at the start.\n");
-        //i += 3;
-        //c = transaction_str[i];
-        //printf("c: %c\n", c);
-
+        //printf("found the c at the start.\n");
         tok = strtok(NULL, delim);
         break;
       case 'd':
-        printf("Depositing");
-        //i += 3;
-        //c = transaction_str[i];
-        //account_a = c;
-        //printf(" into account %d", account_a - 48); //subtract 48 to convert from ASCII code
+        //printf("Depositing\n");
 
+        tok = strtok(NULL, delim);
+        buf = strdup(tok);
+        //printf("buf: %s\n", buf);
+        if (tok[0] == 'a')
+        {
+          buf++;
+          //printf("buf: %s\n", buf);
+        }
+        account_a = atoi(buf);
 
+        tok = strtok(NULL, delim);
+        buf = strdup(tok);
+        //printf("buf: %s\n", buf);
 
-        //i += 2;
-        //c = transaction_str[i];
+        amount = atoi(buf);
 
+        deposit(amount, account_a, bd);
+        tok = strtok(NULL, delim);
+        //free(buf); //TODO why is this causing error?
         break;
       case 'w':
-        printf("Withdrawing\n");
+        //printf("Withdrawing\n");
+
+        tok = strtok(NULL, delim);
+        buf = strdup(tok);
+        //printf("buf: %s\n", buf);
+        if (tok[0] == 'a')
+        {
+          buf++;
+          //printf("buf: %s\n", buf);
+        }
+        account_a = atoi(buf);
+
+        tok = strtok(NULL, delim);
+        buf = strdup(tok); //printf("buf: %s\n", buf);
+        amount = atoi(buf);
+
+        withdraw(amount, account_a, bd);
+        tok = strtok(NULL, delim);
+
         break;
       case 't':
-        printf("Transfering\n");
+        //printf("Transfering\n");
+        tok = strtok(NULL, delim);
+        buf = strdup(tok); //printf("buf: %s\n", buf);
+        if (tok[0] == 'a')
+        {
+          buf++; //printf("buf: %s\n", buf);
+        }
+        account_a = atoi(buf);
+
+        tok = strtok(NULL, delim);
+        buf = strdup(tok); //printf("buf: %s\n", buf);
+        if (tok[0] == 'a')
+        {
+          buf++; //printf("buf: %s\n", buf);
+        }
+        account_b = atoi(buf);
+
+        tok = strtok(NULL, delim);
+        buf = strdup(tok); //printf("buf: %s\n", buf);
+        amount = atoi(buf);
+
+        transfer(amount, account_a, account_b, bd);
+        tok = strtok(NULL, delim);
+
         break;
       default:
-        printf("");
-        //printf("Unexpected character found. c: %c\n", c);
+        printf("Unexpected character found.\n");
     }
   }
 
   //fseek(fp, 0, SEEK_SET);
 }
 
-void deposit(int amount, int account_number)
+void deposit(int amount, int account_number, bank_data *bd)
 {
-
+  printf("Depositing $%d into a%d\n", amount, account_number);
 }
 
-void withdraw(int amount, int account_number)
+void withdraw(int amount, int account_number, bank_data *bd)
 {
-
+  printf("Withdrawing $%d from a%d\n", amount, account_number);
 }
 
-void transfer(int amount, int origin_account_number, int destination_account_number)
+void transfer(int amount, int origin_account_number, int destination_account_number, bank_data *bd)
 {
-
+  printf("Transfering $%d from a%d to a%d\n", amount, origin_account_number, destination_account_number);
 }
 
 void print_bank_data(bank_data *bd)

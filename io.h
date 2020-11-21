@@ -13,11 +13,11 @@ void initialize_balances(FILE *fp, bank_data *inp);
 void populate_transaction_string_lengths(FILE *fp, bank_data *inp);
 void process_all_customer_transactions(FILE *fp, bank_data *bd);
 //void process_customer_transactions(FILE *fp, bank_data *bd, int cid);
-void process_customer(char *transaction_str);
+void process_customer(char *transaction_str, bank_data *bd);
 
-void deposit(int amount, int account_number);
-void withdraw(int amount, int account_number);
-void transfer(int amount, int origin_account_number, int destination_account_number);
+void deposit(int amount, int account_number, bank_data *bd);
+void withdraw(int amount, int account_number, bank_data *bd);
+void transfer(int amount, int origin_account_number, int destination_account_number, bank_data *bd);
 
 void print_bank_data(bank_data *inp);
 

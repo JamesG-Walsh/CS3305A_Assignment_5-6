@@ -156,7 +156,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     //{
     fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
     //}
-    puts(transaction_string);
+    printf("\n%s", transaction_string);
     process_customer(transaction_string, bd);
     //bd->transaction_strings[i-1] = transaction_string;
     //c = getc(fp);
@@ -295,6 +295,7 @@ void process_customer(char *transaction_str, bank_data *bd)
 void deposit(int amount, int account_number, bank_data *bd)
 {
   printf("Depositing $%d into a%d\n", amount, account_number);
+  bd->balances[account_number - 1] += amount;
 }
 
 void withdraw(int amount, int account_number, bank_data *bd)

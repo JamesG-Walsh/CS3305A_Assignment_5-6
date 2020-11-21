@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "io.h"
 
@@ -29,7 +30,6 @@ int read_input_file(char *filename, bank_data *bd)
   print_bank_data(bd);
 
   fclose(fp);
-  //free(buffer);
 
   return 0;
 }
@@ -157,7 +157,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
     //}
     printf("\n%s", transaction_string);
-    process_customer(transaction_string, bd);
+    process_customer(transaction_string, bd); //TODO threads
     //bd->transaction_strings[i-1] = transaction_string;
     //c = getc(fp);
   }
@@ -202,11 +202,11 @@ void process_customer(char *transaction_str, bank_data *bd)
   int account_b;
   int amount;
 
-  int loop_count = 0;
+  //int loop_count = 0;
   char *tok = strtok(transaction_str, delim);
-  while (tok != NULL && loop_count < 5)
+  while (tok != NULL)
   {
-    loop_count += 1; //TODO remove line
+    //loop_count += 1;
     //printf("tok[0]: %c\n", tok[0]);
     switch (tok[0]) //TODO make sure this is robust for accounts and customer ids bigger than 10
     {
@@ -218,19 +218,15 @@ void process_customer(char *transaction_str, bank_data *bd)
         //printf("Depositing\n");
 
         tok = strtok(NULL, delim);
-        buf = strdup(tok);
-        //printf("buf: %s\n", buf);
+        buf = strdup(tok); //printf("buf: %s\n", buf);
         if (tok[0] == 'a')
         {
-          buf++;
-          //printf("buf: %s\n", buf);
+          buf++; //printf("buf: %s\n", buf);
         }
         account_a = atoi(buf);
 
         tok = strtok(NULL, delim);
-        buf = strdup(tok);
-        //printf("buf: %s\n", buf);
-
+        buf = strdup(tok);//printf("buf: %s\n", buf);
         amount = atoi(buf);
 
         deposit(amount, account_a, bd);
@@ -288,7 +284,6 @@ void process_customer(char *transaction_str, bank_data *bd)
         printf("Unexpected character found.\n");
     }
   }
-
   //fseek(fp, 0, SEEK_SET);
 }
 
@@ -301,11 +296,13 @@ void deposit(int amount, int account_number, bank_data *bd)
 void withdraw(int amount, int account_number, bank_data *bd)
 {
   printf("Withdrawing $%d from a%d\n", amount, account_number);
+  //TODO mutual exclusion
 }
 
 void transfer(int amount, int origin_account_number, int destination_account_number, bank_data *bd)
 {
   printf("Transfering $%d from a%d to a%d\n", amount, origin_account_number, destination_account_number);
+  //TODO mutual exclusion
 }
 
 void print_bank_data(bank_data *bd)

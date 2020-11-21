@@ -26,3 +26,14 @@ debug:
 	make
 	./${EXEC} assignment_6_input_file.txt
 	cat assignment_6_output_file.txt
+
+test2:
+	./${EXEC} input2.txt
+	diff assignment_6_output_file.txt expected_output2.txt
+	@echo "Passed!"
+
+robust:
+	make clean
+	make
+	make test
+	make test2

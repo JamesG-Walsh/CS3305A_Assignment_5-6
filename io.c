@@ -25,7 +25,11 @@ int read_input_file(char *filename, bank_data *bd)
 
   print_bank_data(bd);
 
-  process_all_customer_transactions2(fp, bd);
+  process_all_customer_transactions(fp, bd);
+
+
+
+  sleep(1);//TODO using this until i can get join to work
 
   print_bank_data(bd);
 
@@ -134,32 +138,7 @@ void populate_transaction_string_lengths(FILE *fp, bank_data *bd)
 
 void process_all_customer_transactions(FILE *fp, bank_data *bd)
 {
-  int i;
-  char *transaction_string;
-  char throwaway_str[20];
-
-  for(i = 1 ; i <= bd->num_accounts ; i++) //skip over account initial balance lines
-  {
-    fgets(throwaway_str, 80, fp);
-  }
-
-  //thread = malloc(sizeof(pthread_t) * bd->num_customers);
-  for(i = 1 ; i <= bd->num_customers ; i++)
-  {
-    transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
-
-    fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
-
-    printf("\n%s", transaction_string);
-
-    process_customer(transaction_string, bd); //TODO threads
-  }
-  fseek(fp, 0, SEEK_SET);
-}
-
-void process_all_customer_transactions2(FILE *fp, bank_data *bd)
-{
-  printf("pact2\n");
+  //printf("pact\n");
 
   int i;
   char *transaction_string;
@@ -172,6 +151,11 @@ void process_all_customer_transactions2(FILE *fp, bank_data *bd)
   }
 
   pthread_t thread = malloc(sizeof(pthread_t) * bd->num_customers);
+  if(thread == NULL)
+  {
+    printf("Out of memory\n");
+    exit(1);
+  }
   for(i = 1 ; i <= bd->num_customers ; i++)
   {
     transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
@@ -187,13 +171,19 @@ void process_all_customer_transactions2(FILE *fp, bank_data *bd)
     tp->bd = bd;
 
     //process_customer2(tp); //TODO threads
-    if(pthread_create( &thread[i-1], NULL, process_customer2, tp) != 0)
+    if(pthread_create( &thread[i-1], NULL, process_customer, (void*) tp) != 0)
     {
       perror("Thread creation error\n");
       exit(1);
     }
 
   }
+
+  for(i = 0; i < bd->num_customers; i++)
+  {
+    pthread_join(&thread[i], NULL);
+  }
+
   fseek(fp, 0, SEEK_SET);
 }
 
@@ -221,108 +211,9 @@ void initialize_balances(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-//void process_customer_transactions(FILE *fp, bank_data *bd, int cid)
-void process_customer(char *transaction_str, bank_data *bd)
+void process_customer(thread_params *tp)
 {
-  printf("Processing Customer\n");
-  int i = 0;
-  char c = transaction_str[i];
-
-  const char delim[2] = " ";
-  char *buf = NULL;
-
-  int account_a;
-  int account_b;
-  int amount;
-
-  //int loop_count = 0;
-  char *tok = strtok(transaction_str, delim);
-  while (tok != NULL)
-  {
-    //loop_count += 1;
-    //printf("tok[0]: %c\n", tok[0]);
-    switch (tok[0]) //TODO make sure this is robust for accounts and customer ids bigger than 10
-    {
-      case 'c':
-        //printf("found the c at the start.\n");
-        tok = strtok(NULL, delim);
-        break;
-      case 'd':
-        //printf("Depositing\n");
-
-        tok = strtok(NULL, delim);
-        buf = strdup(tok); //printf("buf: %s\n", buf);
-        if (tok[0] == 'a')
-        {
-          buf++; //printf("buf: %s\n", buf);
-        }
-        account_a = atoi(buf);
-
-        tok = strtok(NULL, delim);
-        buf = strdup(tok);//printf("buf: %s\n", buf);
-        amount = atoi(buf);
-
-        deposit(amount, account_a, bd);
-        tok = strtok(NULL, delim);
-        //free(buf); //TODO why is this causing error?
-        break;
-      case 'w':
-        //printf("Withdrawing\n");
-
-        tok = strtok(NULL, delim);
-        buf = strdup(tok);
-        //printf("buf: %s\n", buf);
-        if (tok[0] == 'a')
-        {
-          buf++;
-          //printf("buf: %s\n", buf);
-        }
-        account_a = atoi(buf);
-
-        tok = strtok(NULL, delim);
-        buf = strdup(tok); //printf("buf: %s\n", buf);
-        amount = atoi(buf);
-
-        withdraw(amount, account_a, bd);
-        tok = strtok(NULL, delim);
-
-        break;
-      case 't':
-        //printf("Transfering\n");
-        tok = strtok(NULL, delim);
-        buf = strdup(tok); //printf("buf: %s\n", buf);
-        if (tok[0] == 'a')
-        {
-          buf++; //printf("buf: %s\n", buf);
-        }
-        account_a = atoi(buf);
-
-        tok = strtok(NULL, delim);
-        buf = strdup(tok); //printf("buf: %s\n", buf);
-        if (tok[0] == 'a')
-        {
-          buf++; //printf("buf: %s\n", buf);
-        }
-        account_b = atoi(buf);
-
-        tok = strtok(NULL, delim);
-        buf = strdup(tok); //printf("buf: %s\n", buf);
-        amount = atoi(buf);
-
-        transfer(amount, account_a, account_b, bd);
-        tok = strtok(NULL, delim);
-
-        break;
-      default:
-        printf("Unexpected character found.\n");
-    }
-  }
-  //fseek(fp, 0, SEEK_SET);
-}
-
-void process_customer2(thread_params *tp)
-{
-  printf("Processing Customer 2\n");
+  printf("\nProcessing Customer %d\tTransaction String: %s", tp->cid, tp->tra_str);
 
   char c = tp->tra_str[0];
 
@@ -333,11 +224,11 @@ void process_customer2(thread_params *tp)
   int account_b;
   int dollar_amount;
 
-  //int loop_count = 0;
+  int loop_count = 0;
   char *tok = strtok(tp->tra_str, delim);
-  while (tok != NULL)
+  while (tok != NULL && loop_count < 5)
   {
-    //loop_count += 1;
+    loop_count += 1;
     //printf("tok[0]: %c\n", tok[0]);
     switch (tok[0]) //TODO make sure this is robust for accounts and customer ids bigger than 10
     {
@@ -360,7 +251,7 @@ void process_customer2(thread_params *tp)
         buf = strdup(tok);//printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
-        deposit(dollar_amount, account_a, tp->bd);
+        deposit(tp->cid, dollar_amount, account_a, tp->bd);
         tok = strtok(NULL, delim);
         //free(buf); //TODO why is this causing error?
         break;
@@ -381,7 +272,7 @@ void process_customer2(thread_params *tp)
         buf = strdup(tok); //printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
-        withdraw(dollar_amount, account_a, tp->bd);
+        withdraw(tp->cid, dollar_amount, account_a, tp->bd);
         tok = strtok(NULL, delim);
 
         break;
@@ -407,34 +298,52 @@ void process_customer2(thread_params *tp)
         buf = strdup(tok); //printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
-        transfer(dollar_amount, account_a, account_b, tp->bd);
+        transfer(tp->cid, dollar_amount, account_a, account_b, tp->bd);
         tok = strtok(NULL, delim);
 
         break;
       default:
-        printf("Unexpected character found.\n");
+        printf("Unexpected character found while processing customer %d c: '%c'\n", tp->cid, tok[0]);
     }
   }
   //fseek(fp, 0, SEEK_SET);
 }
 
-void deposit(int amount, int account_number, bank_data *bd)
+void deposit(int cid, int amount, int account_number, bank_data *bd)
 {
-  printf("Depositing $%d into a%d\n", amount, account_number);
+  printf("DEPOSIT Customer %d depositing $%d into a%d\n", cid, amount, account_number);
   bd->balances[account_number - 1] += amount;
 }
 
-void withdraw(int amount, int account_number, bank_data *bd)
+void withdraw(int cid, int amount, int account_number, bank_data *bd)
 {
-  printf("Withdrawing $%d from a%d\n", amount, account_number);
   //TODO mutual exclusion
+  if(amount <= bd->balances[account_number -1])
+  {
+    bd->balances[account_number - 1] -= amount;
+    printf("WITHDRAWAL Customer %d withdrawing $%d from a%d\n", cid, amount, account_number);
+  }
+  else
+  {
+    printf("DECLINED.  Insufficient funds for withdrawal.  Customer %d withdrawing $%d from a%d\n", cid, amount, account_number);
+  }
 }
 
-void transfer(int amount, int origin_account_number, int destination_account_number, bank_data *bd)
+void transfer(int cid, int amount, int origin_account_number, int destination_account_number, bank_data *bd)
 {
-  printf("Transfering $%d from a%d to a%d\n", amount, origin_account_number, destination_account_number);
   //TODO mutual exclusion
+  if(amount <= bd->balances[origin_account_number -1])
+  {
+    bd->balances[origin_account_number - 1] -= amount;
+    bd->balances[destination_account_number - 1] += amount;
+    printf("TRANSFER Customer %d transfering $%d from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
+  }
+  else
+  {
+    printf("DECLINED.  Insufficient funds for transfer.  Customer %d transfering $%d from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
+  }
 }
+
 
 void print_bank_data(bank_data *bd)
 {
@@ -442,8 +351,7 @@ void print_bank_data(bank_data *bd)
   printf("bd->num_cutomers: %d\n", bd->num_customers);
   for (int i = 0 ; i < bd->num_accounts ; i++)
   {
-    printf("Balance %d: ", i+1);
-    printf("%d\n", bd->balances[i]);
+    printf("Balance %d: %d\n", i+1, bd->balances[i]);
   }
   for (int i = 1 ; i <= bd->num_customers ; i++)
   {

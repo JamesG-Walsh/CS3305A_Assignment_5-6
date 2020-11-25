@@ -10,6 +10,13 @@ typedef struct bank_data
   //char **transaction_strings;
 } bank_data;
 
+typedef struct thread_params
+{
+  int cid; //TODO is this necessary?
+  char *tra_str; //tranasction string
+  bank_data *bd;
+} thread_params;
+
 typedef struct node
 {
 	int value;

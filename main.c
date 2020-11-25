@@ -33,9 +33,7 @@ int main(int argc, char* argv[])
   int fp_outfile = open(FILENAME_OUTPUT, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
   dup2(fp_outfile, STDOUT_FILENO); //TODO why are the puts/printf only printing to file, not terminal?
 
-  puts("techno");
-  //printf("electronic music");
-  puts("");
+  print_formatted_output(ban_dat);
 
   free(ban_dat->balances);
   free(ban_dat->transaction_string_lengths);

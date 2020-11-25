@@ -31,7 +31,7 @@ int read_input_file(char *filename, bank_data *bd)
 
   sleep(1);//TODO using this until i can get join to work
 
-  print_bank_data(bd);
+  //print_bank_data(bd);
 
   fclose(fp);
 
@@ -211,7 +211,7 @@ void initialize_balances(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-void process_customer(thread_params *tp)
+void process_customer(void *voidData)
 {
   printf("\nProcessing Customer %d\tTransaction String: %s", tp->cid, tp->tra_str);
 
@@ -251,6 +251,7 @@ void process_customer(thread_params *tp)
         buf = strdup(tok);//printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
+        printf("Calling deposit() Customer %d depositing $%d into a%d\n", tp->cid, dollar_amount, account_a);
         deposit(tp->cid, dollar_amount, account_a, tp->bd);
         tok = strtok(NULL, delim);
         //free(buf); //TODO why is this causing error?
@@ -311,7 +312,7 @@ void process_customer(thread_params *tp)
 
 void deposit(int cid, int amount, int account_number, bank_data *bd)
 {
-  printf("DEPOSIT Customer %d depositing $%d into a%d\n", cid, amount, account_number);
+  printf("DEPOSIT\tCustomer %d depositing $%d into a%d\n", cid, amount, account_number);
   bd->balances[account_number - 1] += amount;
 }
 
@@ -321,11 +322,11 @@ void withdraw(int cid, int amount, int account_number, bank_data *bd)
   if(amount <= bd->balances[account_number -1])
   {
     bd->balances[account_number - 1] -= amount;
-    printf("WITHDRAWAL Customer %d withdrawing $%d from a%d\n", cid, amount, account_number);
+    printf("WITHDRAWAL\tCustomer %d withdrawing $%d from a%d\n", cid, amount, account_number);
   }
   else
   {
-    printf("DECLINED.  Insufficient funds for withdrawal.  Customer %d withdrawing $%d from a%d\n", cid, amount, account_number);
+    printf("DECLINED\tInsufficient funds for withdrawal.  Customer %d withdrawing $%d from a%d\n", cid, amount, account_number);
   }
 }
 
@@ -336,7 +337,7 @@ void transfer(int cid, int amount, int origin_account_number, int destination_ac
   {
     bd->balances[origin_account_number - 1] -= amount;
     bd->balances[destination_account_number - 1] += amount;
-    printf("TRANSFER Customer %d transfering $%d from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
+    printf("TRANSFER\tCustomer %d transfering $%d from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
   }
   else
   {
@@ -356,6 +357,14 @@ void print_bank_data(bank_data *bd)
   for (int i = 1 ; i <= bd->num_customers ; i++)
   {
     printf("Customer %d tsl: %d\n", i, bd->transaction_string_lengths[i-1]);
+  }
+}
+
+void print_formatted_output(bank_data *bd)
+{
+  for (int i = 0 ; i < bd->num_accounts ; i++)
+  {
+    printf("a%d b %d\n", i+1, bd->balances[i]);
   }
 }
 

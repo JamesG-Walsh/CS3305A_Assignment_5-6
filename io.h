@@ -20,6 +20,7 @@ void withdraw(int cid, int amount, int account_number, bank_data *bd);
 void transfer(int cid, int amount, int origin_account_number, int destination_account_number, bank_data *bd);
 
 void print_bank_data(bank_data *inp);
+void print_formatted_output(bank_data *bd);
 
 int count_lines(FILE *fp);
 

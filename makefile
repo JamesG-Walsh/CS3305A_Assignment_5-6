@@ -4,7 +4,7 @@ C = main.c io.c
 EXEC = a6
 
 build: ${C} ${H}
-	${CC} ${C} -o ${EXEC}
+	${CC} ${C} -o ${EXEC} -pthread
 
 test:
 	@echo "Running a6 on assignment_6_input_file.txt"

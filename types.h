@@ -13,8 +13,8 @@ typedef struct bank_data
 typedef struct thread_params
 {
   int cid; //TODO is this necessary?
-  char *tra_str; //tranasction string
   bank_data *bd;
+  char tra_str[]; //tranasction string
 } thread_params;
 
 typedef struct node

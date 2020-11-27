@@ -25,11 +25,16 @@ int read_input_file(char *filename, bank_data *bd)
 
   print_bank_data(bd);
 
-  process_all_customer_transactions(fp, bd);
-
-
-
-  sleep(1);//TODO using this until i can get join to work
+  int threaded_processing = 1; //1: run using threads. 0: run without using threads (process 1 customer at a time)
+  if(threaded_processing)
+  {
+    process_all_customer_transactions(fp, bd);
+    sleep(1); //TODO using this until p_thread join works
+  }
+  else
+  {
+    process_all_customer_transactions_unthreaded(fp, bd);
+  }
 
   //print_bank_data(bd);
 
@@ -150,39 +155,104 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     fgets(throwaway_str, 80, fp);
   }
 
-  pthread_t thread = malloc(sizeof(pthread_t) * bd->num_customers);
-  if(thread == NULL)
+  pthread_t threads[bd->num_customers];
+  /*if(threads == NULL)
   {
     printf("Out of memory\n");
     exit(1);
-  }
+  }*/
+  struct thread_params thread_params_array[bd->num_customers];
   for(i = 1 ; i <= bd->num_customers ; i++)
   {
-    transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
+    //transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
+    char transaction_string[bd->transaction_string_lengths[i-1]];
 
     fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
 
     printf("\n%s", transaction_string);
 
-    thread_params *tp = malloc(sizeof(thread_params));
+    /*thread_params *tp = malloc(sizeof(thread_params));
 
-    tp->cid = i;
+    tp>cid = i;
     tp->tra_str = transaction_string;
-    tp->bd = bd;
+    tp->bd = bd;*/
 
-    //process_customer2(tp); //TODO threads
-    if(pthread_create( &thread[i-1], NULL, process_customer, (void*) tp) != 0)
+    thread_params_array[i-1].cid = i;
+    //thread_params_array[i-1].tra_str = transaction_string;
+    strcpy(thread_params_array[i-1].tra_str, transaction_string);
+    printf("Before thread call, thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
+    thread_params_array[i-1].bd = bd;
+
+    //process_customer(tp); //TODO threads
+    if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
     {
       perror("Thread creation error\n");
       exit(1);
     }
-
   }
 
   for(i = 0; i < bd->num_customers; i++)
   {
-    pthread_join(&thread[i], NULL);
+    pthread_join(&threads[i], NULL); //TODO doesn't seem to work
   }
+
+  fseek(fp, 0, SEEK_SET);
+}
+
+void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
+{
+  printf("Running WITHOUT using threads.\n");
+
+  int i;
+  char *transaction_string;
+  char throwaway_str[20];
+
+
+  for(i = 1 ; i <= bd->num_accounts ; i++) //skip over account initial balance lines
+  {
+    fgets(throwaway_str, 80, fp);
+  }
+
+  pthread_t threads[bd->num_customers];
+  /*if(threads == NULL)
+  {
+    printf("Out of memory\n");
+    exit(1);
+  }*/
+  struct thread_params thread_params_array[bd->num_customers];
+  for(i = 1 ; i <= bd->num_customers ; i++)
+  {
+    //transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
+    char transaction_string[bd->transaction_string_lengths[i-1]];
+
+    fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
+
+    printf("\n%s", transaction_string);
+
+    /*thread_params *tp = malloc(sizeof(thread_params));
+
+    tp>cid = i;
+    tp->tra_str = transaction_string;
+    tp->bd = bd;*/
+
+    thread_params_array[i-1].cid = i;
+    //thread_params_array[i-1].tra_str = transaction_string;
+    strcpy(thread_params_array[i-1].tra_str, transaction_string);
+    printf("AHOY thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
+    thread_params_array[i-1].bd = bd;
+
+    process_customer(&thread_params_array[i-1]);
+    /*if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
+    {
+      perror("Thread creation error\n");
+      exit(1);
+    }*/
+  }
+
+  /*for(i = 0; i < bd->num_customers; i++)
+  {
+    pthread_join(&threads[i], NULL); //TODO doesn't seem to work
+  }*/
 
   fseek(fp, 0, SEEK_SET);
 }
@@ -211,8 +281,9 @@ void initialize_balances(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-void process_customer(void *voidData)
+void process_customer(void * voidData)
 {
+  struct thread_params *tp = voidData;
   printf("\nProcessing Customer %d\tTransaction String: %s", tp->cid, tp->tra_str);
 
   char c = tp->tra_str[0];
@@ -251,7 +322,7 @@ void process_customer(void *voidData)
         buf = strdup(tok);//printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
-        printf("Calling deposit() Customer %d depositing $%d into a%d\n", tp->cid, dollar_amount, account_a);
+        //printf("Calling deposit() Customer %d depositing $%d into a%d\n", tp->cid, dollar_amount, account_a);
         deposit(tp->cid, dollar_amount, account_a, tp->bd);
         tok = strtok(NULL, delim);
         //free(buf); //TODO why is this causing error?
@@ -304,7 +375,7 @@ void process_customer(void *voidData)
 
         break;
       default:
-        printf("Unexpected character found while processing customer %d c: '%c'\n", tp->cid, tok[0]);
+        printf("Unexpected character found while processing customer %d c: '%c'\t tp->tra_str: %s\t tok: %s\n", tp->cid, tok[0], tp->tra_str, tok);
     }
   }
   //fseek(fp, 0, SEEK_SET);
@@ -312,7 +383,7 @@ void process_customer(void *voidData)
 
 void deposit(int cid, int amount, int account_number, bank_data *bd)
 {
-  printf("DEPOSIT\tCustomer %d depositing $%d into a%d\n", cid, amount, account_number);
+  printf("DEPOSIT\t\tCustomer %d depositing $%d into a%d\n", cid, amount, account_number);
   bd->balances[account_number - 1] += amount;
 }
 

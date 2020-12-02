@@ -12,6 +12,12 @@ test:
 	diff assignment_6_output_file.txt expected_output.txt
 	@echo "Passed!"
 
+testUnthreaded:
+	@echo "Running a6 on assignment_6_input_file.txt without using threads."
+	./${EXEC} assignment_6_input_file.txt ut
+	diff assignment_6_output_file.txt expected_output.txt
+	@echo "Passed!"
+
 clean:
 	@echo "Cleaning up..."
 	rm -f ${EXEC} assignment_6_output_file.txt

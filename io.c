@@ -6,7 +6,9 @@
 
 #include "io.h"
 
-int read_input_file(char *filename, bank_data *bd)
+pthread_mutex_t lock;
+
+int read_input_file(char *filename, bank_data *bd, int threadedMode)
 {
   puts("Starting read_input_file()");
   FILE *fp = fopen(filename, "r");
@@ -25,11 +27,11 @@ int read_input_file(char *filename, bank_data *bd)
 
   print_bank_data(bd);
 
-  int threaded_processing = 1; //1: run using threads. 0: run without using threads (process 1 customer at a time)
-  if(threaded_processing)
+
+  if(threadedMode)//1: run using threads. 0: run without using threads (process 1 customer at a time)
   {
     process_all_customer_transactions(fp, bd);
-    sleep(1); //TODO using this until p_thread join works
+    sleep(1); //TODO using this until pthread_join works
   }
   else
   {
@@ -101,6 +103,30 @@ int count_customers(FILE *fp)
   return num_customers;
 }
 
+void initialize_balances(FILE *fp, bank_data *bd)
+{
+  //printf("In i_b\n");
+  int *bals = malloc(sizeof(int) * bd->num_accounts);
+  char c;
+
+  for (int i = 0; i < bd->num_accounts; i++)
+  {
+    c = getc(fp); //a
+    c = getc(fp); //account number
+    c = getc(fp); //space
+    c = getc(fp); //b
+    c = getc(fp); //space
+    //printf("c: %c\n", c);
+    fscanf(fp, "%d", &bals[i]); //the balance
+    //printf("bals[%d]: %d\n", i, bals[i]);
+    for (; c!= '\n' ; c = getc(fp)) //proceed to next line
+    {
+    }
+  }
+  bd->balances = bals;
+  fseek(fp, 0, SEEK_SET);
+}
+
 void populate_transaction_string_lengths(FILE *fp, bank_data *bd)
 {
   char c;
@@ -169,22 +195,28 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
 
     fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
 
-    printf("\n%s", transaction_string);
+    //printf("\n%s", transaction_string);
 
-    /*thread_params *tp = malloc(sizeof(thread_params));
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+    	printf("\n mutex init failed\n");
+    }
 
-    tp>cid = i;
-    tp->tra_str = transaction_string;
-    tp->bd = bd;*/
+    thread_params *tp = malloc(sizeof(thread_params));
+
+    tp->cid = i;
+    strcpy(tp->tra_str, transaction_string);
+    tp->bd = bd;
 
     thread_params_array[i-1].cid = i;
     //thread_params_array[i-1].tra_str = transaction_string;
     strcpy(thread_params_array[i-1].tra_str, transaction_string);
-    printf("Before thread call, thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
+    printf("Before thread call, thread_params_array[%d].tra_str: %s\n", i-1, thread_params_array[i-1].tra_str);
     thread_params_array[i-1].bd = bd;
 
     //process_customer(tp); //TODO threads
-    if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
+    if(pthread_create(&threads[i-1], NULL, &process_customer, tp) != 0)
+    //if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
     {
       perror("Thread creation error\n");
       exit(1);
@@ -197,6 +229,8 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
   }
 
   fseek(fp, 0, SEEK_SET);
+
+  pthread_mutex_destroy(&lock);
 }
 
 void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
@@ -238,7 +272,7 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
     thread_params_array[i-1].cid = i;
     //thread_params_array[i-1].tra_str = transaction_string;
     strcpy(thread_params_array[i-1].tra_str, transaction_string);
-    printf("AHOY thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
+    printf("thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
     thread_params_array[i-1].bd = bd;
 
     process_customer(&thread_params_array[i-1]);
@@ -257,34 +291,11 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-void initialize_balances(FILE *fp, bank_data *bd)
+void process_customer(thread_params *tp)
 {
-  //printf("In i_b\n");
-  int *bals = malloc(sizeof(int) * bd->num_accounts);
-  char c;
+  //struct thread_params *tp = tpst;
 
-  for (int i = 0; i < bd->num_accounts; i++)
-  {
-    c = getc(fp); //a
-    c = getc(fp); //account number
-    c = getc(fp); //space
-    c = getc(fp); //b
-    c = getc(fp); //space
-    //printf("c: %c\n", c);
-    fscanf(fp, "%d", &bals[i]); //the balance
-    //printf("bals[%d]: %d\n", i, bals[i]);
-    for (; c!= '\n' ; c = getc(fp)) //proceed to next line
-    {
-    }
-  }
-  bd->balances = bals;
-  fseek(fp, 0, SEEK_SET);
-}
-
-void process_customer(void * voidData)
-{
-  struct thread_params *tp = voidData;
-  printf("\nProcessing Customer %d\tTransaction String: %s", tp->cid, tp->tra_str);
+  printf("\nProcessing Customer %d\tTransaction String: %s\n", tp->cid, tp->tra_str);
 
   char c = tp->tra_str[0];
 
@@ -389,7 +400,7 @@ void deposit(int cid, int amount, int account_number, bank_data *bd)
 
 void withdraw(int cid, int amount, int account_number, bank_data *bd)
 {
-  //TODO mutual exclusion
+  pthread_mutex_lock(&lock);  // ENTRY REGION
   if(amount <= bd->balances[account_number -1])
   {
     bd->balances[account_number - 1] -= amount;
@@ -399,11 +410,12 @@ void withdraw(int cid, int amount, int account_number, bank_data *bd)
   {
     printf("DECLINED\tInsufficient funds for withdrawal.  Customer %d withdrawing $%d from a%d\n", cid, amount, account_number);
   }
+  pthread_mutex_unlock(&lock); // EXIT REGION
 }
 
 void transfer(int cid, int amount, int origin_account_number, int destination_account_number, bank_data *bd)
 {
-  //TODO mutual exclusion
+	pthread_mutex_lock(&lock);  // ENTRY REGION
   if(amount <= bd->balances[origin_account_number -1])
   {
     bd->balances[origin_account_number - 1] -= amount;
@@ -414,6 +426,7 @@ void transfer(int cid, int amount, int origin_account_number, int destination_ac
   {
     printf("DECLINED.  Insufficient funds for transfer.  Customer %d transfering $%d from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
   }
+  pthread_mutex_unlock(&lock);// EXIT REGION
 }
 
 

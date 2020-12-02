@@ -27,6 +27,11 @@ run:
 	make
 	make test
 
+runUT:
+	make clean
+	make
+	make testUnthreaded
+
 debug:
 	make clean
 	make

@@ -31,8 +31,9 @@ int main(int argc, char* argv[])
 
   bank_data *ban_dat = malloc(sizeof(bank_data));
   puts("About to call read_input_file()");
-  read_input_file(argv[1], ban_dat, threadedMode); //TODO implement function in io.c
+  read_input_file(argv[1], ban_dat, threadedMode);
   puts("Back in main from read_input_file()");
+  print_formatted_output(ban_dat);
 
   if (access(FILENAME_OUTPUT, F_OK) != -1)
   {

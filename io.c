@@ -202,7 +202,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     	printf("\n mutex init failed\n");
     }
 
-    thread_params *tp = malloc(sizeof(thread_params));
+    thread_params *tp;
 
     tp->cid = i;
     strcpy(tp->tra_str, transaction_string);
@@ -215,7 +215,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     thread_params_array[i-1].bd = bd;
 
     //process_customer(tp); //TODO threads
-    if(pthread_create(&threads[i-1], NULL, &process_customer, tp) != 0)
+    if(pthread_create(&threads[i-1], NULL, (void *) &process_customer, tp) != 0)
     //if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
     {
       perror("Thread creation error\n");
@@ -225,7 +225,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
 
   for(i = 0; i < bd->num_customers; i++)
   {
-    pthread_join(&threads[i], NULL); //TODO doesn't seem to work
+    pthread_join((long unsigned int) &threads[i], NULL); //TODO doesn't seem to work
   }
 
   fseek(fp, 0, SEEK_SET);
@@ -308,7 +308,7 @@ void process_customer(thread_params *tp)
 
   int loop_count = 0;
   char *tok = strtok(tp->tra_str, delim);
-  while (tok != NULL && loop_count < 5)
+  while (tok != NULL && loop_count < 40)
   {
     loop_count += 1;
     //printf("tok[0]: %c\n", tok[0]);

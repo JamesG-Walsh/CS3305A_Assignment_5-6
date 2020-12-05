@@ -371,10 +371,11 @@ void process_customer(thread_params *tp, transaction_node *first_node)
   int dollar_amount;
 
   int loop_count = 0;
+  int max_loops = 200;//change max number of loops to whatever is necessary for input file
   char *tok = strtok(tp->tra_str, delim);
 
   transaction_node *current_node = first_node;
-  while (tok != NULL && loop_count <= 200)
+  while (tok != NULL && loop_count <= max_loops) 
   {
     loop_count += 1;
 

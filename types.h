@@ -23,4 +23,15 @@ typedef struct node
 	struct node *next;
 } node;
 
+typedef struct transaction_node
+{
+	int tran_type; //withdrawal <= -1 , transfer == 0, deposit >= 1 
+  int cid; //customer id
+  int account_num_a; //deposit, withdrawal, transfer origin
+  int account_num_b; //transfer destination
+  int dollar_amount;
+  int prev_node_was_final_transaction; //1 for true, 0 for false
+	struct transaction_node *next;
+} transaction_node;
+
 #endif

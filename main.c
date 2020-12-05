@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "io.h"
 #include "types.h"
@@ -15,16 +16,24 @@
 int main(int argc, char* argv[])
 {
   puts("Starting main()");
-  if (argc != 2)
+
+  int threadedMode = 1;
+  if (argc < 2 || argc > 3)
   {
   printf("Usage: %s input.txt\n", argv[0]);
   exit(1);
   }
+  if (argc == 3 && strncmp(argv[2], "ut", 2) == 0)
+  {
+    printf("Running without using threads.\n");
+    threadedMode = 0;
+  }
 
   bank_data *ban_dat = malloc(sizeof(bank_data));
-  puts("About to call read_input_file()");
-  read_input_file(argv[1], ban_dat); //TODO implement function in io.c
-  puts("Back in main from read_input_file()");
+  //puts("About to call read_input_file()");
+  read_input_file(argv[1], ban_dat, threadedMode);
+  puts("Back in main from read_input_file()\n");
+  print_formatted_output(ban_dat);
 
   if (access(FILENAME_OUTPUT, F_OK) != -1)
   {

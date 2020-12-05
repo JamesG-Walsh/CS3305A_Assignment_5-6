@@ -30,18 +30,21 @@ int read_input_file(char *filename, bank_data *bd, int threadedMode)
 
   gbd = bd;
 
+  if (pthread_mutex_init(&lock, NULL) != 0)
+  {
+    printf("\n mutex init failed\n");
+  }
+
   if(!threadedMode)//1: run using threads. 0: run without using threads (process 1 customer at a time)
   {
     process_all_customer_transactions(fp, bd);
-    sleep(1); //TODO using this until pthread_join works
   }
   else
   {
     process_all_customer_transactions_unthreaded(fp, bd);
-    sleep(2);
   }
-
-  //print_bank_data(bd);
+  sleep(1); //TODO using this until pthread_join works
+  pthread_mutex_destroy(&lock);
 
   fclose(fp);
 
@@ -201,11 +204,6 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
 
     //printf("\n%s", transaction_string);
 
-    if (pthread_mutex_init(&lock, NULL) != 0)
-    {
-    	printf("\n mutex init failed\n");
-    }
-
     thread_params *tp;
 
     tp->cid = i;
@@ -241,8 +239,6 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
   */}
 
   fseek(fp, 0, SEEK_SET);
-
-  pthread_mutex_destroy(&lock);
 }
 
 void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
@@ -307,10 +303,10 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
     pthread_create(&threads[i], NULL, &process_customer_nodes, t_node_array[i]);
   }
 
-  /*for(i = 0; i < bd->num_customers; i++)
+  for(i = 0; i < bd->num_customers; i++)
   {
-    pthread_join(&threads[i], NULL); //TODO doesn't seem to work
-  }*/
+    //pthread_join(threads[i], NULL); //TODO doesn't seem to work
+  }
 
   fseek(fp, 0, SEEK_SET);
 }
@@ -321,6 +317,12 @@ void process_customer_nodes(transaction_node* first_node)
   int done_processing = 0;
   while(done_processing == 0)
   {
+    if(current_node->prev_node_was_final_transaction == 1)
+    {
+      done_processing = 1;
+      break;
+    }
+
     if(current_node->tran_type >= 1)
     {
       deposit(current_node->cid, current_node->dollar_amount, current_node->account_num_a, gbd);
@@ -337,15 +339,7 @@ void process_customer_nodes(transaction_node* first_node)
     { 
       break; //shouldn't get here
     }
-
-    if(current_node->last_node == 0)
-    {
-      current_node = current_node->next;
-    }
-    else
-    {
-      done_processing = 1;
-    }
+    current_node = current_node->next;
   }
 }
 
@@ -400,12 +394,12 @@ void process_customer(thread_params *tp, transaction_node *first_node)
         current_node->cid = tp->cid;
         current_node->account_num_a = account_a;
         current_node->dollar_amount = dollar_amount;
-        current_node->last_node = 0;
+        current_node->prev_node_was_final_transaction = 0;
         current_node->next = malloc(sizeof(transaction_node));
         current_node = current_node->next;
 
         tok = strtok(NULL, delim);
-        //free(buf); //TODO why is this causing error?
+
         break;
       case 'w':
         //printf("Withdrawing\n");
@@ -429,7 +423,7 @@ void process_customer(thread_params *tp, transaction_node *first_node)
         current_node->cid = tp->cid;
         current_node->account_num_a = account_a;
         current_node->dollar_amount = dollar_amount;
-        current_node->last_node = 0;
+        current_node->prev_node_was_final_transaction = 0;
         current_node->next = malloc(sizeof(transaction_node));
         current_node = current_node->next;
 
@@ -464,7 +458,7 @@ void process_customer(thread_params *tp, transaction_node *first_node)
         current_node->account_num_a = account_a;
         current_node->account_num_b = account_b;
         current_node->dollar_amount = dollar_amount;
-        current_node->last_node = 0;
+        current_node->prev_node_was_final_transaction = 0;
         current_node->next = malloc(sizeof(transaction_node));
         current_node = current_node->next;
 
@@ -473,11 +467,13 @@ void process_customer(thread_params *tp, transaction_node *first_node)
         break;
       default:
         printf("Unexpected character found while processing customer %d c: '%c'\t tp->tra_str: %s\t tok: %s\n", tp->cid, tok[0], tp->tra_str, tok);
-    }
-  }
-  current_node->last_node = 1;
-  //fseek(fp, 0, SEEK_SET);
-}
+    }//end of switch block
+  }//end of while loop
+  current_node->cid = tp->cid;
+  current_node->prev_node_was_final_transaction = 1;
+
+  free(buf);
+}//end of process_customer() function
 
 void deposit(int cid, int amount, int account_number, bank_data *bd)
 {

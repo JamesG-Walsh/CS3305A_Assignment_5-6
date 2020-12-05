@@ -30,7 +30,7 @@ typedef struct transaction_node
   int account_num_a; //deposit, withdrawal, transfer origin
   int account_num_b; //transfer destination
   int dollar_amount;
-  int last_node; //1 for last node, 0 for not last node
+  int prev_node_was_final_transaction; //1 for true, 0 for false
 	struct transaction_node *next;
 } transaction_node;
 

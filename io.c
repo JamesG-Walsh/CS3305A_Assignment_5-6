@@ -37,7 +37,7 @@ int read_input_file(char *filename, bank_data *bd, int threadedMode)
 
   process_all_customer_transactions(fp, bd);
 
-  sleep(1); //TODO using this as a workaround until pthread_join works
+  //sleep(1); //TODO using this as a workaround until pthread_join works
   fclose(fp);
   pthread_mutex_destroy(&lock);
 
@@ -240,7 +240,6 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
   char *transaction_string;
   char throwaway_str[20];
 
-
   for(i = 1 ; i <= bd->num_accounts ; i++) //skip over account initial balance lines
   {
     fgets(throwaway_str, 80, fp);
@@ -289,14 +288,16 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     }*/
   }
 
-  for(i = 1 ; i <= bd->num_customers ; i++)
+  for(i = 0 ; i < bd->num_customers ; i++)
   {
-    pthread_create(&threads[i], NULL, (void *) &process_customer_nodes, t_node_array[i]);
+    if(pthread_create(&threads[i], NULL, (void *) &process_customer_nodes, t_node_array[i+1]) != 0)
+    {
+      printf("Error creating thread %d.\n", i+1);
+    }
   }
-
   for(i = 0; i < bd->num_customers; i++)
   {
-    //pthread_join(threads[i], NULL); //TODO doesn't seem to work causes program to just wait doing nothing
+    pthread_join(threads[i], NULL);
   }
 
   fseek(fp, 0, SEEK_SET);
@@ -522,7 +523,6 @@ void transfer(int cid, int amount, int origin_account_number, int destination_ac
   }
   pthread_mutex_unlock(&lock);// EXIT REGION
 }
-
 
 void print_bank_data(bank_data *bd)
 {

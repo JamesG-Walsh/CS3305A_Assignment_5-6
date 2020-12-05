@@ -14,7 +14,8 @@ void populate_transaction_string_lengths(FILE *fp, bank_data *inp);
 
 void process_all_customer_transactions(FILE *fp, bank_data *bd);
 void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd);
-void process_customer(thread_params *tp);
+void process_customer(thread_params *tp, transaction_node *first_node);
+void process_customer_nodes(transaction_node* first_node);
 
 void deposit(int cid, int amount, int account_number, bank_data *bd);
 void withdraw(int cid, int amount, int account_number, bank_data *bd);

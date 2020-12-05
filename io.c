@@ -7,6 +7,7 @@
 #include "io.h"
 
 pthread_mutex_t lock;
+bank_data *gbd;
 
 int read_input_file(char *filename, bank_data *bd, int threadedMode)
 {
@@ -27,8 +28,9 @@ int read_input_file(char *filename, bank_data *bd, int threadedMode)
 
   print_bank_data(bd);
 
+  gbd = bd;
 
-  if(threadedMode)//1: run using threads. 0: run without using threads (process 1 customer at a time)
+  if(!threadedMode)//1: run using threads. 0: run without using threads (process 1 customer at a time)
   {
     process_all_customer_transactions(fp, bd);
     sleep(1); //TODO using this until pthread_join works
@@ -36,6 +38,7 @@ int read_input_file(char *filename, bank_data *bd, int threadedMode)
   else
   {
     process_all_customer_transactions_unthreaded(fp, bd);
+    sleep(2);
   }
 
   //print_bank_data(bd);
@@ -188,6 +191,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     exit(1);
   }*/
   struct thread_params thread_params_array[bd->num_customers];
+  struct transaction_node *t_node_array[bd->num_customers];
   for(i = 1 ; i <= bd->num_customers ; i++)
   {
     //transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
@@ -214,8 +218,15 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     printf("Before thread call, thread_params_array[%d].tra_str: %s\n", i-1, thread_params_array[i-1].tra_str);
     thread_params_array[i-1].bd = bd;
 
-    //process_customer(tp); //TODO threads
-    if(pthread_create(&threads[i-1], NULL, (void *) &process_customer, tp) != 0)
+    transaction_node *first_node = malloc(sizeof(transaction_node));
+    t_node_array[i] = first_node;
+    transaction_node *current_node = first_node;
+    process_customer(tp, current_node); //TODO threads
+    current_node->next = malloc(sizeof(transaction_node));
+    current_node = current_node->next;
+    
+
+    /*if(pthread_create(&threads[i-1], NULL, (void *) &process_customer, tp) != 0)
     //if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
     {
       perror("Thread creation error\n");
@@ -227,6 +238,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
   {
     pthread_join((long unsigned int) &threads[i], NULL); //TODO doesn't seem to work
   }
+  */}
 
   fseek(fp, 0, SEEK_SET);
 
@@ -254,6 +266,7 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
     exit(1);
   }*/
   struct thread_params thread_params_array[bd->num_customers];
+  struct transaction_node *t_node_array[bd->num_customers];
   for(i = 1 ; i <= bd->num_customers ; i++)
   {
     //transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
@@ -275,12 +288,23 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
     printf("thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
     thread_params_array[i-1].bd = bd;
 
-    process_customer(&thread_params_array[i-1]);
+    transaction_node *first_node = malloc(sizeof(transaction_node));
+    t_node_array[i] = first_node;
+    //transaction_node *current_node = first_node;
+    process_customer(&thread_params_array[i-1], first_node);
+    //current_node->next = malloc(sizeof(transaction_node));
+    //current_node = current_node->next;
+
     /*if(pthread_create(&threads[i-1], NULL, &process_customer, &thread_params_array[i-1]) != 0)
     {
       perror("Thread creation error\n");
       exit(1);
     }*/
+  }
+
+  for(i = 1 ; i <= bd->num_customers ; i++)
+  {
+    pthread_create(&threads[i], NULL, &process_customer_nodes, t_node_array[i]);
   }
 
   /*for(i = 0; i < bd->num_customers; i++)
@@ -291,7 +315,41 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-void process_customer(thread_params *tp)
+void process_customer_nodes(transaction_node* first_node)
+{
+  transaction_node *current_node = first_node;
+  int done_processing = 0;
+  while(done_processing == 0)
+  {
+    if(current_node->tran_type >= 1)
+    {
+      deposit(current_node->cid, current_node->dollar_amount, current_node->account_num_a, gbd);
+    }
+    else if(current_node->tran_type <= -1)
+    {
+      withdraw(current_node->cid, current_node->dollar_amount, current_node->account_num_a, gbd);
+    }
+    else if(current_node->tran_type == 0)
+    {
+      transfer(current_node->cid, current_node->dollar_amount, current_node->account_num_a, current_node->account_num_b, gbd);
+    }
+    else
+    { 
+      break; //shouldn't get here
+    }
+
+    if(current_node->last_node == 0)
+    {
+      current_node = current_node->next;
+    }
+    else
+    {
+      done_processing = 1;
+    }
+  }
+}
+
+void process_customer(thread_params *tp, transaction_node *first_node)
 {
   //struct thread_params *tp = tpst;
 
@@ -308,9 +366,12 @@ void process_customer(thread_params *tp)
 
   int loop_count = 0;
   char *tok = strtok(tp->tra_str, delim);
+
+  transaction_node *current_node = first_node;
   while (tok != NULL && loop_count < 40)
   {
     loop_count += 1;
+
     //printf("tok[0]: %c\n", tok[0]);
     switch (tok[0]) //TODO make sure this is robust for accounts and customer ids bigger than 10
     {
@@ -334,7 +395,15 @@ void process_customer(thread_params *tp)
         dollar_amount = atoi(buf);
 
         //printf("Calling deposit() Customer %d depositing $%d into a%d\n", tp->cid, dollar_amount, account_a);
-        deposit(tp->cid, dollar_amount, account_a, tp->bd);
+        //deposit(tp->cid, dollar_amount, account_a, tp->bd);
+        current_node->tran_type = 1;
+        current_node->cid = tp->cid;
+        current_node->account_num_a = account_a;
+        current_node->dollar_amount = dollar_amount;
+        current_node->last_node = 0;
+        current_node->next = malloc(sizeof(transaction_node));
+        current_node = current_node->next;
+
         tok = strtok(NULL, delim);
         //free(buf); //TODO why is this causing error?
         break;
@@ -355,7 +424,15 @@ void process_customer(thread_params *tp)
         buf = strdup(tok); //printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
-        withdraw(tp->cid, dollar_amount, account_a, tp->bd);
+        //withdraw(tp->cid, dollar_amount, account_a, tp->bd);
+        current_node->tran_type = -1;
+        current_node->cid = tp->cid;
+        current_node->account_num_a = account_a;
+        current_node->dollar_amount = dollar_amount;
+        current_node->last_node = 0;
+        current_node->next = malloc(sizeof(transaction_node));
+        current_node = current_node->next;
+
         tok = strtok(NULL, delim);
 
         break;
@@ -381,7 +458,16 @@ void process_customer(thread_params *tp)
         buf = strdup(tok); //printf("buf: %s\n", buf);
         dollar_amount = atoi(buf);
 
-        transfer(tp->cid, dollar_amount, account_a, account_b, tp->bd);
+        //transfer(tp->cid, dollar_amount, account_a, account_b, tp->bd);
+        current_node->tran_type = 0;
+        current_node->cid = tp->cid;
+        current_node->account_num_a = account_a;
+        current_node->account_num_b = account_b;
+        current_node->dollar_amount = dollar_amount;
+        current_node->last_node = 0;
+        current_node->next = malloc(sizeof(transaction_node));
+        current_node = current_node->next;
+
         tok = strtok(NULL, delim);
 
         break;
@@ -389,6 +475,7 @@ void process_customer(thread_params *tp)
         printf("Unexpected character found while processing customer %d c: '%c'\t tp->tra_str: %s\t tok: %s\n", tp->cid, tok[0], tp->tra_str, tok);
     }
   }
+  current_node->last_node = 1;
   //fseek(fp, 0, SEEK_SET);
 }
 

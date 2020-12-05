@@ -275,7 +275,7 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
     thread_params_array[i-1].bd = bd;
 
     transaction_node *first_node = malloc(sizeof(transaction_node));
-    t_node_array[i] = first_node;
+    t_node_array[i] = first_node; //TODO Not sure why i works but i-1 causes segmentation fault.
     //transaction_node *current_node = first_node;
     process_customer(&thread_params_array[i-1], first_node);
     //current_node->next = malloc(sizeof(transaction_node));

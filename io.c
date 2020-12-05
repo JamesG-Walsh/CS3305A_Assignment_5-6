@@ -300,7 +300,7 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
 
   for(i = 1 ; i <= bd->num_customers ; i++)
   {
-    pthread_create(&threads[i], NULL, &process_customer_nodes, t_node_array[i]);
+    pthread_create(&threads[i], NULL, (void *) &process_customer_nodes, t_node_array[i]);
   }
 
   for(i = 0; i < bd->num_customers; i++)
@@ -337,9 +337,29 @@ void process_customer_nodes(transaction_node* first_node)
     }
     else
     { 
-      break; //shouldn't get here
+      printf("else block that should have been unreachable was reached.\n");
+      break;
     }
     current_node = current_node->next;
+  }
+  //free nodes
+  current_node = first_node;
+  transaction_node *prev_node;
+  while(1)
+  {
+    if(current_node->prev_node_was_final_transaction == 0)
+    {
+      prev_node = current_node;
+      current_node = current_node->next;
+      free(prev_node);
+      //printf("freed a node.\n");
+    }
+    else
+    {
+      free(current_node);
+      //printf("freed all the nodes for this customer.\n");
+      break;
+    }
   }
 }
 

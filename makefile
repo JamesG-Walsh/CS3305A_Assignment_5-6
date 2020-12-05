@@ -43,8 +43,14 @@ test2:
 	diff assignment_6_output_file.txt expected_output2.txt
 	@echo "Passed!"
 
+test3:
+	./${EXEC} input3.txt
+	diff assignment_6_output_file.txt expected_output3.txt
+	@echo "Passed!"
+
 robust:
 	make clean
 	make
 	make test
 	make test2
+	make test3

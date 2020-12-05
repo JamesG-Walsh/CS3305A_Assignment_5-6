@@ -11,7 +11,7 @@ bank_data *gbd;
 
 int read_input_file(char *filename, bank_data *bd, int threadedMode)
 {
-  puts("Starting read_input_file()");
+  //puts("Starting read_input_file()");
   FILE *fp = fopen(filename, "r");
   if (fp == NULL)
   {
@@ -28,25 +28,18 @@ int read_input_file(char *filename, bank_data *bd, int threadedMode)
 
   print_bank_data(bd);
 
-  gbd = bd;
+  gbd = bd; //had this idea late in the game.  Could clean program up by just using gbd instead of passing pointer as argument down the chain.
 
   if (pthread_mutex_init(&lock, NULL) != 0)
   {
     printf("\n mutex init failed\n");
   }
 
-  if(!threadedMode)//1: run using threads. 0: run without using threads (process 1 customer at a time)
-  {
-    process_all_customer_transactions(fp, bd);
-  }
-  else
-  {
-    process_all_customer_transactions_unthreaded(fp, bd);
-  }
-  sleep(1); //TODO using this until pthread_join works
-  pthread_mutex_destroy(&lock);
+  process_all_customer_transactions(fp, bd);
 
+  sleep(1); //TODO using this as a workaround until pthread_join works
   fclose(fp);
+  pthread_mutex_destroy(&lock);
 
   return 0;
 }
@@ -65,7 +58,7 @@ int count_accounts(FILE *fp)
   }
   if (c != 'a')
   {
-    printf("First line of input file is not an account balance.\n"); //TODO unless the input has a customer first...
+    printf("First line of input file is not an account balance.\n");
     return 0;
   }
   while(c != EOF)
@@ -173,7 +166,7 @@ void populate_transaction_string_lengths(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-void process_all_customer_transactions(FILE *fp, bank_data *bd)
+void process_all_customer_transactions_abandoned(FILE *fp, bank_data *bd)
 {
   //printf("pact\n");
 
@@ -241,10 +234,8 @@ void process_all_customer_transactions(FILE *fp, bank_data *bd)
   fseek(fp, 0, SEEK_SET);
 }
 
-void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
+void process_all_customer_transactions(FILE *fp, bank_data *bd)
 {
-  printf("Running WITHOUT using threads.\n");
-
   int i;
   char *transaction_string;
   char throwaway_str[20];
@@ -268,9 +259,9 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
     //transaction_string = malloc(sizeof(char) * bd->transaction_string_lengths[i-1]);
     char transaction_string[bd->transaction_string_lengths[i-1]];
 
-    fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); //TODO play around with the +4
+    fgets(transaction_string, bd->transaction_string_lengths[i-1] + 4, fp); 
 
-    printf("\n%s", transaction_string);
+    //printf("\n%s", transaction_string);
 
     /*thread_params *tp = malloc(sizeof(thread_params));
 
@@ -281,7 +272,7 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
     thread_params_array[i-1].cid = i;
     //thread_params_array[i-1].tra_str = transaction_string;
     strcpy(thread_params_array[i-1].tra_str, transaction_string);
-    printf("thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
+    //printf("thread_params_array[i-1].tra_str: %s\n", thread_params_array[i-1].tra_str);
     thread_params_array[i-1].bd = bd;
 
     transaction_node *first_node = malloc(sizeof(transaction_node));
@@ -305,7 +296,7 @@ void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd)
 
   for(i = 0; i < bd->num_customers; i++)
   {
-    //pthread_join(threads[i], NULL); //TODO doesn't seem to work
+    //pthread_join(threads[i], NULL); //TODO doesn't seem to work causes program to just wait doing nothing
   }
 
   fseek(fp, 0, SEEK_SET);
@@ -367,7 +358,7 @@ void process_customer(thread_params *tp, transaction_node *first_node)
 {
   //struct thread_params *tp = tpst;
 
-  printf("\nProcessing Customer %d\tTransaction String: %s\n", tp->cid, tp->tra_str);
+  printf("Processing Customer %d\tTransaction String: %s\n", tp->cid, tp->tra_str);
 
   char c = tp->tra_str[0];
 
@@ -382,7 +373,7 @@ void process_customer(thread_params *tp, transaction_node *first_node)
   char *tok = strtok(tp->tra_str, delim);
 
   transaction_node *current_node = first_node;
-  while (tok != NULL && loop_count < 40)
+  while (tok != NULL && loop_count <= 200)
   {
     loop_count += 1;
 
@@ -497,7 +488,7 @@ void process_customer(thread_params *tp, transaction_node *first_node)
 
 void deposit(int cid, int amount, int account_number, bank_data *bd)
 {
-  printf("DEPOSIT\t\tCustomer %d depositing $%d into a%d\n", cid, amount, account_number);
+  printf("DEPOSIT\t\tCustomer %d depositing \t$%d\t into a%d\n", cid, amount, account_number);
   bd->balances[account_number - 1] += amount;
 }
 
@@ -507,7 +498,7 @@ void withdraw(int cid, int amount, int account_number, bank_data *bd)
   if(amount <= bd->balances[account_number -1])
   {
     bd->balances[account_number - 1] -= amount;
-    printf("WITHDRAWAL\tCustomer %d withdrawing $%d from a%d\n", cid, amount, account_number);
+    printf("WITHDRAWAL\tCustomer %d withdrawing \t$%d\t from a%d\n", cid, amount, account_number);
   }
   else
   {
@@ -523,7 +514,7 @@ void transfer(int cid, int amount, int origin_account_number, int destination_ac
   {
     bd->balances[origin_account_number - 1] -= amount;
     bd->balances[destination_account_number - 1] += amount;
-    printf("TRANSFER\tCustomer %d transfering $%d from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
+    printf("TRANSFER\tCustomer %d transfering \t$%d\t from a%d to a%d\n", cid, amount, origin_account_number, destination_account_number);
   }
   else
   {
@@ -536,14 +527,14 @@ void transfer(int cid, int amount, int origin_account_number, int destination_ac
 void print_bank_data(bank_data *bd)
 {
   printf("\nbd->num_accounts: %d\n", bd->num_accounts);
-  printf("bd->num_cutomers: %d\n", bd->num_customers);
+  printf("bd->num_customers: %d\n", bd->num_customers);
   for (int i = 0 ; i < bd->num_accounts ; i++)
   {
     printf("Balance %d: %d\n", i+1, bd->balances[i]);
   }
   for (int i = 1 ; i <= bd->num_customers ; i++)
   {
-    printf("Customer %d tsl: %d\n", i, bd->transaction_string_lengths[i-1]);
+    //printf("Customer %d tsl: %d\n", i, bd->transaction_string_lengths[i-1]);
   }
 }
 

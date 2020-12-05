@@ -13,7 +13,7 @@ void initialize_balances(FILE *fp, bank_data *inp);
 void populate_transaction_string_lengths(FILE *fp, bank_data *inp);
 
 void process_all_customer_transactions(FILE *fp, bank_data *bd);
-void process_all_customer_transactions_unthreaded(FILE *fp, bank_data *bd);
+void process_all_customer_transactions_abandoned(FILE *fp, bank_data *bd);
 void process_customer(thread_params *tp, transaction_node *first_node);
 void process_customer_nodes(transaction_node* first_node);
 
